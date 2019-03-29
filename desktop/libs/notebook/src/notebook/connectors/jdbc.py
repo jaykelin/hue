@@ -25,6 +25,7 @@ from desktop.lib.i18n import force_unicode, smart_str
 from librdbms.jdbc import Jdbc, query_and_fetch
 
 from notebook.connectors.base import Api, QueryError, AuthenticationRequired
+from desktop.lib import export_csvxls
 
 
 LOG = logging.getLogger(__name__)
@@ -125,7 +126,14 @@ class JdbcApi(Api):
     return {'status': 0}
 
   def download(self, notebook, snippet, format, user_agent=None):
-    raise PopupException('Downloading is not supported yet')
+    content_generator = self._jdbc_adapter(snippet)
+    generator = export_csvxls.create_generator(content_generator, format)
+    return export_csvxls.make_response(generator, format, 'script_result', user_agent=user_agent)
+
+  def _jdbc_adapter(self, snippet):
+    data, description = query_and_fetch(self.db, snippet['statement'])
+    cols = [col[0] for col in description]
+    yield cols, data
 
   def progress(self, snippet, logs):
     return 50
